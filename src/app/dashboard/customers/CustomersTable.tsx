@@ -36,6 +36,7 @@ export default function CustomersTable({ initialClientes }: { initialClientes: a
               <tr>
                 <th className="px-5 py-3 font-medium">Name</th>
                 <th className="px-5 py-3 font-medium">Telegram ID</th>
+                <th className="px-5 py-3 font-medium">Account Type</th>
                 <th className="px-5 py-3 font-medium">Contact</th>
                 <th className="px-5 py-3 font-medium">Joined</th>
                 <th className="px-5 py-3 font-medium text-right">Actions</th>
@@ -53,6 +54,17 @@ export default function CustomersTable({ initialClientes }: { initialClientes: a
                     </div>
                   </td>
                   <td className="px-5 py-4 text-slate-400 font-mono text-xs">{cliente.telegram_chat_id}</td>
+                  <td className="px-5 py-4">
+                    {cliente.email_empresa ? (
+                      <span className="px-2.5 py-1 text-xs font-medium border rounded-full text-indigo-400 bg-indigo-500/10 border-indigo-500/20">
+                        B2B CORPORATE
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-1 text-xs font-medium border rounded-full text-slate-300 bg-slate-800 border-slate-700">
+                        B2C RETAIL
+                      </span>
+                    )}
+                  </td>
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-2 text-slate-400">
                       <Phone size={14} />
