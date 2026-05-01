@@ -1,6 +1,7 @@
 import { Telegraf, Markup } from 'telegraf';
 import { supabaseAdmin } from '@/utils/supabase/admin';
 import { registerCustomerMenus } from './menus/customer';
+import { registerDriverMenus } from './menus/driver';
 
 // 1. Inicializamos la instancia principal del bot
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN as string);
@@ -68,6 +69,9 @@ bot.start(async (ctx) => {
 
 // Registramos toda la lógica conversacional del cliente (Cotización, etc)
 registerCustomerMenus(bot);
+
+// Registramos toda la lógica operativa del conductor
+registerDriverMenus(bot);
 
 // Otras acciones globales
 bot.action('action_rastrear', (ctx) => {
