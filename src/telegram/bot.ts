@@ -2,12 +2,31 @@ import { Telegraf, Markup } from 'telegraf';
 import { supabaseAdmin } from '@/utils/supabase/admin';
 import { registerCustomerMenus } from './menus/customer';
 import { registerDriverMenus } from './menus/driver';
+import { registerAdminMenus } from './menus/admin';
+
+// ID del Administrador Global
+const GLOBAL_ADMIN_ID = '5989236776';
 
 // 1. Inicializamos la instancia principal del bot
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN as string);
 
 bot.start(async (ctx) => {
   const telegramId = ctx.from.id.toString();
+  const nombrePerfil = ctx.from.first_name || 'Usuario';
+  
+  // 2. Lógica de Administrador Global
+  if (telegramId === GLOBAL_ADMIN_ID) {
+    return ctx.reply(
+      `¡Hola, Global Admin ${nombrePerfil}! 👑\n\nBienvenido al Panel de Control principal. Tienes acceso total al sistema.`,
+      {
+        parse_mode: 'Markdown',
+        ...Markup.inlineKeyboard([
+          [Markup.button.callback('📊 Panel de Control', 'admin_dashboard')],
+          [Markup.button.callback('🚚 Ver Conductores', 'admin_drivers'), Markup.button.callback('📦 Ver Entregas', 'admin_deliveries')]
+        ])
+      }
+    );
+  }
   
   try {
     const { data: conductor } = await supabaseAdmin
@@ -30,7 +49,6 @@ bot.start(async (ctx) => {
   }
 
   // 3. Lógica de Clientes Particulares
-  const nombrePerfil = ctx.from.first_name || 'Amigo';
   let saludo = `¡Hola de nuevo, ${nombrePerfil}! 👋`;
 
   try {
@@ -55,22 +73,22 @@ bot.start(async (ctx) => {
 
   // Menú de Cliente (Público)
   return ctx.reply(
-    `${saludo}\n\nTu ID user es: \`${telegramId}\`\n*(pásale este id al administrador si eres conductor y es primera vez que ingresas a la whitelist)*`,
+    `${saludo}\n\n¿En qué podemos ayudarte hoy?`,
     {
       parse_mode: 'Markdown',
       ...Markup.inlineKeyboard([
         [Markup.button.callback('💸 Cotizar Envío', 'action_cotizar')],
         [Markup.button.callback('🚚 Rastrear Paquete', 'action_rastrear')],
+        [Markup.button.callback('🛵 Afiliar mensajero', 'action_afiliar_mensajero')],
         [Markup.button.url('🏢 Soy Empresa', 'https://pruebas-rapidin-app.nswk6n.easypanel.host')]
       ])
     }
   );
 });
 
-// Registramos toda la lógica conversacional del cliente (Cotización, etc)
+// Registramos toda la lógica conversacional
+registerAdminMenus(bot);
 registerCustomerMenus(bot);
-
-// Registramos toda la lógica operativa del conductor
 registerDriverMenus(bot);
 
 // Otras acciones globales
