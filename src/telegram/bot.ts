@@ -52,6 +52,7 @@ bot.start(async (ctx) => {
 
   // 3. Lógica de Clientes Particulares
   let saludo = `¡Hola de nuevo, ${nombrePerfil}! 👋`;
+  let faltaTelefono = false;
 
   try {
     // Buscar si ya es un cliente registrado
@@ -68,12 +69,24 @@ bot.start(async (ctx) => {
         nombre_perfil: nombrePerfil
       });
       saludo = `¡Bienvenido a Rapidín, ${nombrePerfil}! 🎉\nTu solución de envíos ultra-rápida.`;
+      faltaTelefono = true;
+    } else if (!cliente.telefono) {
+      faltaTelefono = true;
     }
   } catch (err) {
     console.error("Error registrando al cliente en Supabase:", err);
   }
 
-  // Menú de Cliente (Público)
+  if (faltaTelefono) {
+    return ctx.reply(
+      `${saludo}\n\nPara poder contactarte por WhatsApp y enviarte notificaciones de tus pedidos, por favor comparte tu número de celular presionando el botón de abajo:`,
+      Markup.keyboard([
+        [Markup.button.contactRequest('📱 Compartir mi Número de Celular')]
+      ]).resize().oneTime()
+    );
+  }
+
+  // Menú de Cliente (Público) si ya tiene teléfono
   return ctx.reply(
     `${saludo}\n\n¿En qué podemos ayudarte hoy?`,
     {
@@ -86,6 +99,38 @@ bot.start(async (ctx) => {
       ])
     }
   );
+});
+
+// Manejador para cuando el usuario envía su contacto
+bot.on('contact', async (ctx) => {
+  const telefono = ctx.message.contact.phone_number;
+  const telegramId = ctx.from.id.toString();
+
+  try {
+    await supabaseAdmin
+      .from('clientes_telegram')
+      .update({ telefono: telefono } as any)
+      .eq('telegram_chat_id', telegramId);
+
+    await ctx.reply('✅ ¡Número guardado exitosamente! Ya podemos contactarte por WhatsApp.', Markup.removeKeyboard());
+    
+    // Volver a enviar el menú principal
+    ctx.reply(
+      `¿En qué podemos ayudarte hoy?`,
+      {
+        parse_mode: 'Markdown',
+        ...Markup.inlineKeyboard([
+          [Markup.button.callback('💸 Cotizar Envío', 'action_cotizar')],
+          [Markup.button.callback('🚚 Rastrear Paquete', 'action_rastrear')],
+          [Markup.button.callback('🛵 Afiliar mensajero', 'action_afiliar_mensajero')],
+          [Markup.button.callback('🏢 Soy Empresa', 'action_soy_empresa')]
+        ])
+      }
+    );
+  } catch (err) {
+    console.error("Error guardando teléfono:", err);
+    ctx.reply('❌ Ocurrió un error al guardar tu número.');
+  }
 });
 
 // Registramos toda la lógica conversacional
