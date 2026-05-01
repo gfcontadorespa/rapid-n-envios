@@ -82,7 +82,7 @@ bot.start(async (ctx) => {
         [Markup.button.callback('💸 Cotizar Envío', 'action_cotizar')],
         [Markup.button.callback('🚚 Rastrear Paquete', 'action_rastrear')],
         [Markup.button.callback('🛵 Afiliar mensajero', 'action_afiliar_mensajero')],
-        [Markup.button.url('🏢 Soy Empresa', 'https://pruebas-rapidin-app.nswk6n.easypanel.host')]
+        [Markup.button.callback('🏢 Soy Empresa', 'action_soy_empresa')]
       ])
     }
   );

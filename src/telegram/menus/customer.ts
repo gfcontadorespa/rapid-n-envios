@@ -204,4 +204,37 @@ export function registerCustomerMenus(bot: Telegraf) {
     }
   });
 
+  // 7. Flujo B2B: Soy Empresa
+  const empresaState = new Set<string>();
+
+  bot.action('action_soy_empresa', (ctx) => {
+    ctx.answerCbQuery();
+    const userId = ctx.from?.id.toString();
+    if (userId) empresaState.add(userId);
+    
+    ctx.reply('🏢 *Registro Corporativo*\n\nPor favor, escríbeme tu **correo electrónico corporativo** para contactarte y darte acceso al Dashboard Web B2B:', { parse_mode: 'Markdown' });
+  });
+
+  bot.on('text', async (ctx, next) => {
+    const userId = ctx.from?.id.toString();
+    if (userId && empresaState.has(userId)) {
+      const email = ctx.message.text;
+      
+      // Guardar en Supabase (Opcional, en la tabla clientes_telegram si añadimos columna email)
+      try {
+        await supabaseAdmin
+          .from('clientes_telegram')
+          .update({ email_empresa: email } as any) // as any por si la columna no existe en los tipos TS aún
+          .eq('telegram_chat_id', userId);
+      } catch (err) {
+        console.log("No se pudo guardar email", err);
+      }
+
+      empresaState.delete(userId);
+      await ctx.reply(`✅ ¡Gracias! Hemos registrado tu correo: *\`${email}\`*.\n\nUn ejecutivo de cuentas se comunicará contigo muy pronto para habilitar tu portal B2B con herramientas avanzadas de logística.`, { parse_mode: 'Markdown' });
+    } else {
+      return next();
+    }
+  });
+
 }
