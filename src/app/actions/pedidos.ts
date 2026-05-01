@@ -99,7 +99,7 @@ export async function assignDriverAction(pedidoId: string, conductorId: string) 
       try {
         await bot.telegram.sendMessage(conductor.telegram_chat_id, mensaje, { 
           parse_mode: 'Markdown',
-          disable_web_page_preview: true 
+          link_preview_options: { is_disabled: true }
         });
       } catch (tgError) {
         console.error('Error enviando mensaje de Telegram al conductor:', tgError);
