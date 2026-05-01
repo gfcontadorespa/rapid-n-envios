@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { MapPin, Search, Star, BookmarkPlus, Navigation, Send } from 'lucide-react';
+import { MapPin, Search, Star, BookmarkPlus, Navigation, Send, Package } from 'lucide-react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
@@ -164,8 +164,9 @@ export default function NewDeliveryPage() {
               <span className="text-slate-400">Tarifa Estimada</span>
               <span className="text-xl font-bold text-white">$4.50</span>
             </div>
-            <button type="submit" className="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white font-bold rounded-lg shadow-lg shadow-cyan-500/20 transition-all">
-              Solicitar Conductor Ahora
+            <button type="submit" className="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white font-bold rounded-lg shadow-lg shadow-cyan-500/20 transition-all flex items-center justify-center gap-2">
+              <Package size={20} />
+              Colocar Envío
             </button>
           </div>
         </form>
