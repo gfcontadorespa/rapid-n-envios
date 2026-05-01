@@ -81,3 +81,36 @@ CREATE POLICY "Clientes ven sus propios pedidos" ON public.pedidos FOR SELECT US
 CREATE POLICY "Admins ven todos los pedidos" ON public.pedidos FOR SELECT USING (
   EXISTS (SELECT 1 FROM public.usuarios WHERE id = auth.uid() AND rol = 'admin')
 );
+
+-- ----------------------------------------------------
+-- ACTUALIZACIÓN: B2B Y PANEL DE EMPRESAS
+-- ----------------------------------------------------
+
+-- 6. Tabla de Empresas Corporativas B2B
+CREATE TABLE public.empresas (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nombre_comercial TEXT NOT NULL,
+    ruc TEXT,
+    email_facturacion TEXT,
+    telefono TEXT,
+    direccion TEXT,
+    creado_en TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 7. Tabla de Usuarios de Empresa (Equipo/Staff B2B)
+CREATE TABLE public.usuarios_empresas (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    empresa_id UUID REFERENCES public.empresas(id) ON DELETE CASCADE,
+    auth_user_id UUID REFERENCES auth.users(id), -- Null si es invitación pendiente
+    nombre TEXT NOT NULL,
+    email TEXT NOT NULL,
+    rol TEXT DEFAULT 'operador' CHECK (rol IN ('admin', 'operador')),
+    estado TEXT DEFAULT 'pendiente' CHECK (estado IN ('activo', 'pendiente', 'inactivo')),
+    creado_en TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    UNIQUE(empresa_id, email)
+);
+
+-- 8. Actualizaciones a la tabla Pedidos
+-- Relacionar el pedido con una empresa (si es B2B) y con el conductor asignado
+ALTER TABLE public.pedidos ADD COLUMN IF NOT EXISTS empresa_id UUID REFERENCES public.empresas(id);
+ALTER TABLE public.pedidos ADD COLUMN IF NOT EXISTS conductor_id UUID REFERENCES public.conductores(id);
