@@ -10,7 +10,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="flex items-center gap-2">
             <Truck className="h-8 w-8 text-teal-400" />
             <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-teal-400 to-cyan-400">
-              LogisDispatch
+              Rapidín
             </span>
           </div>
         </div>
