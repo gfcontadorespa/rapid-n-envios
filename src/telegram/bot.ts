@@ -38,7 +38,7 @@ bot.start(async (ctx) => {
       .single();
 
     if (conductor) {
-      return ctx.reply(
+      await ctx.reply(
         `¡Hola Conductor! 🚚\n\nBienvenido a tu panel operativo. ¿Qué deseas hacer hoy?`,
         Markup.keyboard([
           ['📦 Crear Pedido', '📍 Mis Viajes'],
