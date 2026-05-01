@@ -1,4 +1,5 @@
 import { Package, Truck, Clock, AlertTriangle, MoreHorizontal, ArrowUpRight } from "lucide-react";
+import Map from "@/components/Map";
 
 export default function DashboardPage() {
   return (
@@ -18,8 +19,16 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Content - Recent Deliveries */}
-        <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+        {/* Main Content */}
+        <div className="lg:col-span-2 space-y-6">
+          
+          {/* Live Tracking Map */}
+          <div className="h-[400px] w-full rounded-xl overflow-hidden relative z-0">
+            <Map />
+          </div>
+
+          {/* Recent Deliveries Table */}
+          <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
           <div className="p-5 border-b border-slate-800 flex justify-between items-center">
             <h2 className="font-semibold text-white">Recent Deliveries</h2>
             <button className="text-sm text-teal-400 hover:text-teal-300 font-medium">View All</button>
@@ -43,6 +52,7 @@ export default function DashboardPage() {
                 <TableRow id="TRK-8920" dest="21 Cedar Ct, Region" status="Preparing" driver="Unassigned" statusColor="text-blue-400 bg-blue-500/10 border-blue-500/20" />
               </tbody>
             </table>
+          </div>
           </div>
         </div>
 
