@@ -117,7 +117,7 @@ export function registerCustomerMenus(bot: Telegraf) {
         destino_lat: destLat,
         destino_lng: destLng,
         destino_direccion: 'Ubicación GPS (Destino)',
-        creado_por: 'cliente',
+        creado_por: ctx.from?.id.toString() || 'cliente',
         tarifa_envio: tarifa,
         estado: 'creado',
         estado_pago: 'pendiente'

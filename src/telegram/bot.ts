@@ -139,9 +139,45 @@ registerCustomerMenus(bot);
 registerDriverMenus(bot);
 
 // Otras acciones globales
-bot.action('action_rastrear', (ctx) => {
+bot.action('action_rastrear', async (ctx) => {
   ctx.answerCbQuery();
-  ctx.reply('Por favor, escríbeme tu número de tracking o guía de remisión (Ejemplo: TRK-12345):');
+  const telegramId = ctx.from?.id.toString();
+  
+  let mensajePendientes = '';
+
+  if (telegramId) {
+    try {
+      // Buscar envíos activos donde el creado_por sea el ID de telegram del cliente
+      const { data: pendientes } = await supabaseAdmin
+        .from('pedidos')
+        .select('tracking_number, destino_direccion, estado')
+        .eq('creado_por', telegramId)
+        .neq('estado', 'entregado')
+        .neq('estado', 'cancelado')
+        .order('creado_en', { ascending: false })
+        .limit(5);
+
+      if (pendientes && pendientes.length > 0) {
+        mensajePendientes = '📦 *Tus envíos activos:*\n\n';
+        pendientes.forEach(p => {
+          const destinoCorto = p.destino_direccion 
+            ? (p.destino_direccion.length > 25 ? p.destino_direccion.substring(0, 25) + '...' : p.destino_direccion) 
+            : 'Ubicación GPS';
+            
+          const estadoLimpio = (p.estado || 'creado').replace(/_/g, ' ').toUpperCase();
+          
+          mensajePendientes += `🔹 \`${p.tracking_number}\`\n📍 Destino: ${destinoCorto}\n🚦 Estado: ${estadoLimpio}\n\n`;
+        });
+      }
+    } catch (error) {
+      console.error("Error buscando pedidos pendientes:", error);
+    }
+  }
+
+  ctx.reply(
+    `${mensajePendientes}Para ver el detalle completo o rastrear un envío distinto, escríbeme el **número de tracking** (Ejemplo: TRK-12345):`,
+    { parse_mode: 'Markdown' }
+  );
 });
 
 bot.command('ping', (ctx) => {
