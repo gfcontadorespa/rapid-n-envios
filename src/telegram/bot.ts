@@ -28,14 +28,39 @@ bot.start(async (ctx) => {
     console.error("Error consultando la base de datos de conductores:", err);
   }
 
-  // Menú de Cliente
+  // 3. Lógica de Clientes Particulares
+  const nombrePerfil = ctx.from.first_name || 'Amigo';
+  let saludo = `¡Hola de nuevo, ${nombrePerfil}! 👋`;
+
+  try {
+    // Buscar si ya es un cliente registrado
+    const { data: cliente } = await supabaseAdmin
+      .from('clientes_telegram')
+      .select('*')
+      .eq('telegram_chat_id', telegramId)
+      .single();
+
+    if (!cliente) {
+      // Es un cliente nuevo, lo registramos silenciosamente
+      await supabaseAdmin.from('clientes_telegram').insert({
+        telegram_chat_id: telegramId,
+        nombre_perfil: nombrePerfil
+      });
+      saludo = `¡Bienvenido a Rapidín, ${nombrePerfil}! 🎉\nTu solución de envíos ultra-rápida.`;
+    }
+  } catch (err) {
+    console.error("Error registrando al cliente en Supabase:", err);
+  }
+
+  // Menú de Cliente (Público)
   return ctx.reply(
-    `¡Bienvenido a Rapidín! 📦\nTu solución de envíos ultra-rápida.\n\nTu ID user es: \`${telegramId}\`\n*(pásale este id al administrador si eres conductor y es primera vez que ingresas a la whitelist)*`,
+    `${saludo}\n\nTu ID user es: \`${telegramId}\`\n*(pásale este id al administrador si eres conductor y es primera vez que ingresas a la whitelist)*`,
     {
       parse_mode: 'Markdown',
       ...Markup.inlineKeyboard([
         [Markup.button.callback('💸 Cotizar Envío', 'action_cotizar')],
-        [Markup.button.callback('🚚 Rastrear Paquete', 'action_rastrear')]
+        [Markup.button.callback('🚚 Rastrear Paquete', 'action_rastrear')],
+        [Markup.button.url('🏢 Soy Empresa', 'https://pruebas-rapidin-app.nswk6n.easypanel.host')]
       ])
     }
   );
