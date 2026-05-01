@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { MapPin, Search, Star, BookmarkPlus, Navigation, Send, Package } from 'lucide-react';
+import { MapPin, Search, Star, BookmarkPlus, Navigation, Send, Package, Loader2 } from 'lucide-react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { createOrderAction } from '@/app/actions/pedidos';
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
@@ -11,6 +12,8 @@ export default function NewDeliveryPage() {
   const [origin, setOrigin] = useState({ lat: 8.9824, lng: -79.5199, address: '' });
   const [destination, setDestination] = useState({ lat: 8.9950, lng: -79.5100, address: '' });
   const [activeInput, setActiveInput] = useState<'origin' | 'destination' | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [createdOrder, setCreatedOrder] = useState<any>(null);
   
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -78,11 +81,68 @@ export default function NewDeliveryPage() {
     }
   };
 
-  const handleCreateOrder = (e: React.FormEvent) => {
+  const handleCreateOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Aquí conectaríamos con Supabase para crear el pedido
-    alert("¡Pedido creado con éxito! (Simulación)");
+    if (!origin.address || !destination.address) {
+      alert("Por favor, selecciona origen y destino.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const pedido = await createOrderAction({
+        originLat: origin.lat,
+        originLng: origin.lng,
+        originAddress: origin.address,
+        destLat: destination.lat,
+        destLng: destination.lng,
+        destAddress: destination.address,
+        price: 4.50 // TODO: Calcular dinámicamente con Turf.js o API
+      });
+      
+      setCreatedOrder(pedido);
+      // Aquí el siguiente paso será mostrar la vista de Etiqueta
+      
+    } catch (error) {
+      console.error(error);
+      alert("Hubo un error al crear el pedido.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  if (createdOrder) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 max-w-md w-full text-center space-y-6">
+          <div className="w-16 h-16 bg-cyan-500/10 text-cyan-400 rounded-full flex items-center justify-center mx-auto">
+            <Package size={32} />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-white mb-2">¡Pedido Guardado!</h2>
+            <p className="text-slate-400">Tu envío ha sido registrado en el sistema. Pronto un conductor será asignado para recogerlo.</p>
+          </div>
+          
+          <div className="bg-slate-950 p-4 rounded-lg border border-slate-800">
+            <div className="text-xs text-slate-500 uppercase tracking-wider mb-1">Tracking ID</div>
+            <div className="text-xl font-mono text-cyan-400">{createdOrder.tracking_number}</div>
+          </div>
+
+          <div className="flex gap-4 pt-4">
+            <button 
+              onClick={() => setCreatedOrder(null)}
+              className="flex-1 py-2.5 border border-slate-700 hover:bg-slate-800 text-white rounded-lg transition-colors"
+            >
+              Volver
+            </button>
+            <button className="flex-1 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-lg transition-colors">
+              Imprimir Etiqueta
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-[calc(100vh-8rem)] flex flex-col lg:flex-row gap-6">
@@ -164,9 +224,12 @@ export default function NewDeliveryPage() {
               <span className="text-slate-400">Tarifa Estimada</span>
               <span className="text-xl font-bold text-white">$4.50</span>
             </div>
-            <button type="submit" className="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white font-bold rounded-lg shadow-lg shadow-cyan-500/20 transition-all flex items-center justify-center gap-2">
-              <Package size={20} />
-              Colocar Envío
+            <button 
+              type="submit" 
+              disabled={isSubmitting}
+              className="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white font-bold rounded-lg shadow-lg shadow-cyan-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+              {isSubmitting ? <Loader2 size={20} className="animate-spin" /> : <Package size={20} />}
+              {isSubmitting ? "Registrando..." : "Colocar Envío"}
             </button>
           </div>
         </form>
