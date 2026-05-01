@@ -30,7 +30,7 @@ bot.start(async (ctx) => {
 
   // Menú de Cliente
   return ctx.reply(
-    `¡Bienvenido a Rapidín! 📦\nTu solución de envíos ultra-rápida.\n\nTu ID de Telegram es: \`${telegramId}\``,
+    `¡Bienvenido a Rapidín! 📦\nTu solución de envíos ultra-rápida.\n\nTu ID user es: \`${telegramId}\`\n*(pásale este id al administrador si eres conductor y es primera vez que ingresas a la whitelist)*`,
     {
       parse_mode: 'Markdown',
       ...Markup.inlineKeyboard([
