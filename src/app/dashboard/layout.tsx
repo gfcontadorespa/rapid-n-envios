@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LayoutDashboard, Truck, Users, MapPin, Settings, LogOut, Bell } from "lucide-react";
+import { LayoutDashboard, Truck, Users, MapPin, Settings, LogOut, Bell, UserCircle } from "lucide-react";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -27,6 +27,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <Link href="/dashboard/drivers" className="flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-slate-200 rounded-lg transition-colors">
             <Users size={20} />
             <span className="font-medium">Drivers</span>
+          </Link>
+          <Link href="/dashboard/customers" className="flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-slate-200 rounded-lg transition-colors">
+            <UserCircle size={20} />
+            <span className="font-medium">Customers</span>
           </Link>
           <Link href="/dashboard/settings" className="flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-slate-200 rounded-lg transition-colors">
             <Settings size={20} />
