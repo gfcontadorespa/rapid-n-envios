@@ -150,11 +150,12 @@ export function registerCustomerMenus(bot: Telegraf) {
     );
   });
 
-  // 6. Afiliar Mensajero (Sin cambios)
-  bot.action('action_afiliar_mensajero', async (ctx) => {
-    ctx.answerCbQuery('Procesando solicitud...');
-    const telegramId = ctx.from?.id.toString();
+  // 6. Afiliar Mensajero
+  const afiliarState = new Set<string>();
 
+  bot.action('action_afiliar_mensajero', async (ctx) => {
+    ctx.answerCbQuery();
+    const telegramId = ctx.from?.id.toString();
     if (!telegramId) return;
 
     try {
@@ -172,35 +173,14 @@ export function registerCustomerMenus(bot: Telegraf) {
         }
       }
 
-      const { error } = await supabaseAdmin.from('conductores').insert({
-        telegram_chat_id: telegramId,
-        vehiculo: 'Por asignar',
-        estado: 'inactivo',
-        rol_operativo: 'abierto'
-      });
-
-      if (error) throw error;
-
+      afiliarState.add(telegramId);
       ctx.editMessageText(
-        '✅ *Solicitud de Afiliación Recibida*\n\n¡Gracias por tu interés en unirte a nuestro equipo! Hemos notificado al administrador. Te avisaremos por aquí una vez que tu cuenta sea aprobada para empezar a hacer entregas.',
+        '🛵 *Registro de Conductor*\n\n¡Gracias por tu interés en unirte a nuestro equipo!\n\nPor favor, responde a este mensaje con el **tipo de vehículo** que utilizarás para las entregas (Ejemplo: Moto Suzuki, Carro Sedán, Bicicleta):',
         { parse_mode: 'Markdown' }
       );
-
-      const GLOBAL_ADMIN_ID = '5989236776';
-      bot.telegram.sendMessage(
-        GLOBAL_ADMIN_ID,
-        `🔔 *Nueva Solicitud de Conductor*\nEl usuario ${ctx.from?.first_name || 'Desconocido'} (@${ctx.from?.username || 'sin_usuario'}, ID: ${telegramId}) desea afiliarse.`,
-        {
-          parse_mode: 'Markdown',
-          ...Markup.inlineKeyboard([
-            [Markup.button.callback('✅ Aprobar ahora', `admin_aprobar_${telegramId}`)]
-          ])
-        }
-      );
-
     } catch (error) {
-      console.error("Error al afiliar mensajero:", error);
-      ctx.editMessageText('❌ Ocurrió un error al procesar tu solicitud. Intenta nuevamente más tarde.');
+      console.error("Error validando conductor:", error);
+      ctx.editMessageText('❌ Ocurrió un error. Intenta nuevamente más tarde.');
     }
   });
 
@@ -213,19 +193,17 @@ export function registerCustomerMenus(bot: Telegraf) {
     if (!userId) return;
 
     try {
-      // Verificar si ya tiene el correo registrado o está vinculado a un cliente
       const { data: cliente } = await supabaseAdmin
         .from('clientes_telegram')
         .select('*')
         .eq('telegram_chat_id', userId)
         .single();
 
-      // Suponemos que si tiene 'email_empresa' (o un campo similar), ya está validado
       if (cliente && cliente.email_empresa) {
         return ctx.reply('🏢 *Panel Corporativo B2B*\n\nTu cuenta ya está vinculada a un perfil de empresa. Accede a tu portal logístico aquí:', {
           parse_mode: 'Markdown',
           ...Markup.inlineKeyboard([
-            [Markup.button.url('🗺️ Abrir Dashboard Web', 'https://pruebas-rapidin-app.nswk6n.easypanel.host')]
+            [Markup.button.url('🗺️ Abrir Dashboard Web', 'https://pruebas-rapidin-app.nswk6n.easypanel.host/dashboard')]
           ])
         });
       }
@@ -233,31 +211,70 @@ export function registerCustomerMenus(bot: Telegraf) {
       console.log("Error verificando registro B2B:", err);
     }
     
-    // Si no tiene correo registrado, iniciamos el flujo de captura
     empresaState.add(userId);
     ctx.reply('🏢 *Registro Corporativo*\n\nPor favor, escríbeme tu **correo electrónico corporativo** para contactarte y darte acceso al Dashboard Web B2B:', { parse_mode: 'Markdown' });
   });
 
+  // Manejador Global de Textos para Estados (Empresa y Conductor)
   bot.on('text', async (ctx, next) => {
     const userId = ctx.from?.id.toString();
-    if (userId && empresaState.has(userId)) {
+    if (!userId) return next();
+
+    // Estado: Afiliar Mensajero (Vehículo)
+    if (afiliarState.has(userId)) {
+      const vehiculo = ctx.message.text;
+      afiliarState.delete(userId);
+
+      try {
+        await supabaseAdmin.from('conductores').insert({
+          telegram_chat_id: userId,
+          vehiculo: vehiculo,
+          estado: 'inactivo',
+          rol_operativo: 'abierto'
+        });
+
+        await ctx.reply(
+          `✅ *Solicitud de Afiliación Recibida*\n\nVehículo registrado: *${vehiculo}*\n\nHemos notificado al administrador. Te avisaremos por aquí una vez que tu cuenta sea aprobada para empezar a hacer entregas.`,
+          { parse_mode: 'Markdown' }
+        );
+
+        const GLOBAL_ADMIN_ID = '5989236776';
+        bot.telegram.sendMessage(
+          GLOBAL_ADMIN_ID,
+          `🔔 *Nueva Solicitud de Conductor*\nEl usuario ${ctx.from?.first_name || 'Desconocido'} (@${ctx.from?.username || 'sin_usuario'})\nVehículo: ${vehiculo}`,
+          {
+            parse_mode: 'Markdown',
+            ...Markup.inlineKeyboard([
+              [Markup.button.callback('✅ Aprobar ahora', `admin_aprobar_${userId}`)]
+            ])
+          }
+        );
+      } catch (err) {
+        console.error("Error guardando vehículo:", err);
+        ctx.reply('❌ Hubo un error al registrar tu vehículo. Intenta de nuevo.');
+      }
+      return;
+    }
+
+    // Estado: Empresa (Email)
+    if (empresaState.has(userId)) {
       const email = ctx.message.text;
-      
-      // Guardar en Supabase (Opcional, en la tabla clientes_telegram si añadimos columna email)
+      empresaState.delete(userId);
+
       try {
         await supabaseAdmin
           .from('clientes_telegram')
-          .update({ email_empresa: email } as any) // as any por si la columna no existe en los tipos TS aún
+          .update({ email_empresa: email } as any)
           .eq('telegram_chat_id', userId);
       } catch (err) {
         console.log("No se pudo guardar email", err);
       }
 
-      empresaState.delete(userId);
       await ctx.reply(`✅ ¡Gracias! Hemos registrado tu correo: *\`${email}\`*.\n\nUn ejecutivo de cuentas se comunicará contigo muy pronto para habilitar tu portal B2B con herramientas avanzadas de logística.`, { parse_mode: 'Markdown' });
-    } else {
-      return next();
+      return;
     }
+
+    return next();
   });
 
 }
