@@ -35,10 +35,10 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         </nav>
 
         <div className="p-4 border-t border-slate-800">
-          <button className="flex items-center gap-3 px-4 py-3 w-full text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 rounded-lg transition-colors">
+          <Link href="/" className="flex items-center gap-3 px-4 py-3 w-full text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 rounded-lg transition-colors">
             <LogOut size={20} />
             <span className="font-medium">Cerrar Sesión</span>
-          </button>
+          </Link>
         </div>
       </aside>
 
