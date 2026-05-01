@@ -14,9 +14,7 @@ export async function toggleDriverStatus(driverId: string, newState: 'activo' | 
 
     revalidatePath('/dashboard/drivers');
     revalidatePath('/dashboard');
-    return { success: true };
   } catch (error) {
     console.error("Error toggling driver status:", error);
-    return { success: false, error: 'Failed to update driver status' };
   }
 }
