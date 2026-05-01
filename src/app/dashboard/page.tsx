@@ -39,7 +39,7 @@ export default async function DashboardPage() {
           
           {/* Live Tracking Map */}
           <div className="h-[400px] w-full rounded-xl overflow-hidden relative z-0">
-            <TrackingMap />
+            <TrackingMap pedidos={activeDeliveries} conductores={activeDrivers} />
           </div>
 
           {/* Recent Deliveries Table */}
