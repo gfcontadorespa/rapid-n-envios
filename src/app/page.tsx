@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Package, Lock, Mail, ArrowRight, Loader2 } from "lucide-react";
+import { Package, Lock, Mail, ArrowRight, Loader2, Wind } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 
 export default function LoginPage() {
@@ -57,14 +57,26 @@ export default function LoginPage() {
         className="w-full max-w-md bg-slate-900/60 backdrop-blur-2xl border border-slate-700/50 rounded-3xl shadow-2xl overflow-hidden z-10"
       >
         <div className="p-8">
-          <div className="flex justify-center mb-8">
-            <div className="bg-teal-500/10 p-4 rounded-2xl border border-teal-500/20 shadow-[0_0_15px_rgba(20,184,166,0.2)]">
+          <div className="flex justify-center items-center mb-8 relative h-16 w-full">
+            <motion.div
+              animate={{ x: [-40, 60] }}
+              transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+              className="absolute z-0 opacity-40 text-cyan-400"
+            >
+              <Wind className="w-8 h-8" />
+            </motion.div>
+
+            <motion.div 
+              animate={{ y: [-3, 3, -3] }}
+              transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+              className="bg-teal-500/10 p-4 rounded-2xl border border-teal-500/20 shadow-[0_0_15px_rgba(20,184,166,0.2)] z-10"
+            >
               <Package className="w-10 h-10 text-teal-400" />
-            </div>
+            </motion.div>
           </div>
           
           <h1 className="text-3xl font-bold text-center text-white mb-2 tracking-tight">
-            Logística <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-cyan-400">Pro</span>
+            Rapidín <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-cyan-400">Console</span>
           </h1>
           <p className="text-slate-400 text-center mb-6 text-sm">
             Ingresa a tu panel de control de envíos
