@@ -16,8 +16,8 @@ bot.start(async (ctx) => {
   
   // 2. Lógica de Administrador Global
   if (telegramId === GLOBAL_ADMIN_ID) {
-    return ctx.reply(
-      `¡Hola, Global Admin ${nombrePerfil}! 👑\n\nBienvenido al Panel de Control principal. Tienes acceso total al sistema.`,
+    await ctx.reply(
+      `¡Hola, Global Admin ${nombrePerfil}! 👑\n\nModo Dios activado. Tienes tus herramientas de administrador aquí arriba, y abajo verás el menú normal de usuario:`,
       {
         parse_mode: 'Markdown',
         ...Markup.inlineKeyboard([
@@ -26,6 +26,8 @@ bot.start(async (ctx) => {
         ])
       }
     );
+    // ¡OJO! Quité el "return" aquí. 
+    // Ahora el código sigue bajando y también te imprimirá el menú de Cliente/Conductor.
   }
   
   try {
