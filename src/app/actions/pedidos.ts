@@ -33,22 +33,47 @@ export async function createOrderAction(data: {
     throw new Error('No se pudo crear el pedido');
   }
 
-  return pedido;
-}
-
 import { revalidatePath } from 'next/cache';
+import bot from '@/telegram/bot';
 
 export async function assignDriverAction(pedidoId: string, conductorId: string) {
   try {
-    const { error } = await supabaseAdmin
+    // 1. Asignar el conductor en Supabase
+    const { error, data: pedido } = await supabaseAdmin
       .from('pedidos')
       .update({ 
         conductor_id: conductorId,
-        estado: 'asignado_recoleccion' // Actualiza el estado del pedido a asignado
+        estado: 'asignado_recoleccion'
       })
-      .eq('id', pedidoId);
+      .eq('id', pedidoId)
+      .select()
+      .single();
 
     if (error) throw error;
+
+    // 2. Obtener el telegram_chat_id del conductor
+    const { data: conductor } = await supabaseAdmin
+      .from('conductores')
+      .select('telegram_chat_id')
+      .eq('id', conductorId)
+      .single();
+
+    // 3. Notificar al conductor por Telegram
+    if (conductor?.telegram_chat_id) {
+      const mensaje = 
+        `🔔 *¡NUEVO PEDIDO ASIGNADO!*\n\n` +
+        `📦 *Tracking:* \`${pedido.tracking_number}\`\n` +
+        `📍 *Origen:* ${pedido.origen_direccion || 'GPS'}\n` +
+        `🚩 *Destino:* ${pedido.destino_direccion || 'GPS'}\n\n` +
+        `Por favor, dirígete al punto de origen para recolectar el paquete. Puedes usar el menú inferior para gestionar tus viajes.`;
+
+      try {
+        await bot.telegram.sendMessage(conductor.telegram_chat_id, mensaje, { parse_mode: 'Markdown' });
+      } catch (tgError) {
+        console.error('Error enviando mensaje de Telegram al conductor:', tgError);
+        // No lanzamos error para no interrumpir el flujo si Telegram falla, el pedido ya se asignó en BD.
+      }
+    }
 
     revalidatePath('/dashboard/deliveries');
     revalidatePath('/dashboard');
