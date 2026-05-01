@@ -58,20 +58,48 @@ export async function assignDriverAction(pedidoId: string, conductorId: string) 
       .eq('id', conductorId)
       .single();
 
+    // 2.1 Obtener datos del cliente para pasárselos al conductor
+    let infoCliente = '';
+    let enlacesContacto = '';
+    
+    if (pedido.creado_por && pedido.creado_por !== 'web') {
+      const { data: cliente } = await supabaseAdmin
+        .from('clientes_telegram')
+        .select('nombre_perfil, telefono, telegram_chat_id')
+        .eq('telegram_chat_id', pedido.creado_por)
+        .single();
+        
+      if (cliente) {
+        infoCliente = `\n👤 *Cliente:* ${cliente.nombre_perfil || 'Usuario'}`;
+        enlacesContacto = `\n\n📲 *Contactar al cliente:*`;
+        enlacesContacto += `\n💬 [Chat de Telegram](tg://user?id=${cliente.telegram_chat_id})`;
+        if (cliente.telefono) {
+          const waNum = cliente.telefono.replace(/\D/g, '');
+          enlacesContacto += `\n🟩 [Chat de WhatsApp](https://wa.me/${waNum})`;
+        }
+      }
+    }
+
     // 3. Notificar al conductor por Telegram
     if (conductor?.telegram_chat_id) {
+      const refOrigen = pedido.origen_referencia ? `\n   ↳ _Ref: ${pedido.origen_referencia}_` : '';
+      const refDestino = pedido.destino_referencia ? `\n   ↳ _Ref: ${pedido.destino_referencia}_` : '';
+
       const mensaje = 
         `🔔 *¡NUEVO PEDIDO ASIGNADO!*\n\n` +
-        `📦 *Tracking:* \`${pedido.tracking_number}\`\n` +
-        `📍 *Origen:* ${pedido.origen_direccion || 'GPS'}\n` +
-        `🚩 *Destino:* ${pedido.destino_direccion || 'GPS'}\n\n` +
+        `📦 *Tracking:* \`${pedido.tracking_number}\`${infoCliente}\n\n` +
+        `📍 *Origen:* ${pedido.origen_direccion || 'GPS'}${refOrigen}\n\n` +
+        `🚩 *Destino:* ${pedido.destino_direccion || 'GPS'}${refDestino}` +
+        `${enlacesContacto}\n\n` +
         `Por favor, dirígete al punto de origen para recolectar el paquete. Puedes usar el menú inferior para gestionar tus viajes.`;
 
       try {
-        await bot.telegram.sendMessage(conductor.telegram_chat_id, mensaje, { parse_mode: 'Markdown' });
+        await bot.telegram.sendMessage(conductor.telegram_chat_id, mensaje, { 
+          parse_mode: 'Markdown',
+          disable_web_page_preview: true 
+        });
       } catch (tgError) {
         console.error('Error enviando mensaje de Telegram al conductor:', tgError);
-        // No lanzamos error para no interrumpir el flujo si Telegram falla, el pedido ya se asignó en BD.
       }
     }
 

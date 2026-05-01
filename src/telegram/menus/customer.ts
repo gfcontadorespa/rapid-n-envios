@@ -3,11 +3,14 @@ import { supabaseAdmin } from '@/utils/supabase/admin';
 
 // Estado en memoria temporal para las cotizaciones (En producción se recomienda Redis o Base de Datos)
 const quoteState = new Map<string, {
-  step: 'AWAITING_ORIGIN' | 'AWAITING_DEST',
+  step: 'AWAITING_ORIGIN' | 'AWAITING_ORIGIN_REF' | 'AWAITING_DEST' | 'AWAITING_DEST_REF' | 'CONFIRMING',
   originLat?: number,
   originLng?: number,
+  originRef?: string,
   destLat?: number,
-  destLng?: number
+  destLng?: number,
+  destRef?: string,
+  tarifaTotal?: number
 }>();
 
 // Configuración de tarifas (Fácil de mover a la BD en el futuro para personalizar)
@@ -78,77 +81,117 @@ export function registerCustomerMenus(bot: Telegraf) {
     if (!state) return; // Si no está en medio de una cotización, ignoramos
 
     if (state.step === 'AWAITING_ORIGIN') {
-      // Guardar origen y pedir destino
-      quoteState.set(userId, { step: 'AWAITING_DEST', originLat: lat, originLng: lng });
+      quoteState.set(userId, { ...state, step: 'AWAITING_ORIGIN_REF', originLat: lat, originLng: lng });
       ctx.reply(
-        '✅ ¡Origen guardado!\n\n🎯 *Paso 2: ¿A dónde lo llevamos?*\n\nPor favor envíame la ubicación de entrega. (Puedes adjuntarla usando el ícono del clip 📎 y seleccionando "Ubicación" para buscarla en el mapa).',
+        '✅ ¡Origen guardado!\n\n📝 *(Opcional)* Escribe una breve **nota de referencia para el origen** (Ej. "Edificio PH, Piso 2", "Preguntar en recepción", etc.).\n\nSi no deseas agregar referencia, presiona "Omitir".',
         {
           parse_mode: 'Markdown',
-          ...Markup.removeKeyboard() // Quitamos el teclado de ubicación actual
+          ...Markup.inlineKeyboard([[Markup.button.callback('⏭️ Omitir Referencia', 'skip_origin_ref')]])
         }
       );
     } else if (state.step === 'AWAITING_DEST') {
-      // Guardar destino y calcular tarifa
-      if (state.originLat === undefined || state.originLng === undefined) return;
-      
-      const distKm = calcularDistancia(state.originLat, state.originLng, lat, lng);
-      
-      // Cálculo de tarifa
-      let tarifaTotal = TARIFAS.BASE + (distKm * TARIFAS.POR_KM);
-      if (tarifaTotal < TARIFAS.MINIMA) tarifaTotal = TARIFAS.MINIMA; // Respetar tarifa mínima
-
+      quoteState.set(userId, { ...state, step: 'AWAITING_DEST_REF', destLat: lat, destLng: lng });
       ctx.reply(
-        `✅ *Cotización Lista*\n\n📏 Distancia calculada: ${distKm.toFixed(2)} km\n💸 *Costo Estimado: $${tarifaTotal.toFixed(2)}*\n\n*(Tarifa base: $${TARIFAS.BASE.toFixed(2)} + $${TARIFAS.POR_KM.toFixed(2)}/km)*\n\n¿Deseas confirmar el envío?`,
+        '✅ ¡Destino guardado!\n\n📝 *(Opcional)* Escribe una breve **nota de referencia para el destino**.\n\nSi no deseas agregar referencia, presiona "Omitir".',
         {
           parse_mode: 'Markdown',
-          ...Markup.inlineKeyboard([
-            [Markup.button.callback('✅ Confirmar y Crear Pedido', `crear_gps_${state.originLat}_${state.originLng}_${lat}_${lng}_${tarifaTotal.toFixed(2)}`)],
-            [Markup.button.callback('❌ Cancelar', 'action_cancelar')]
-          ])
+          ...Markup.inlineKeyboard([[Markup.button.callback('⏭️ Omitir Referencia', 'skip_dest_ref')]])
         }
       );
-      
-      // Limpiamos el estado
-      quoteState.delete(userId);
     }
   });
 
-  // 3. Crear el pedido en Supabase con coordenadas
-  bot.action(/^crear_gps_(.+)_(.+)_(.+)_(.+)_(.+)$/, async (ctx) => {
-    const originLat = parseFloat(ctx.match[1]);
-    const originLng = parseFloat(ctx.match[2]);
-    const destLat = parseFloat(ctx.match[3]);
-    const destLng = parseFloat(ctx.match[4]);
-    const tarifa = parseFloat(ctx.match[5]);
+  // Helper para mostrar la cotización final
+  const mostrarCotizacion = (ctx: any, userId: string, state: any) => {
+    if (state.originLat === undefined || state.originLng === undefined || state.destLat === undefined || state.destLng === undefined) return;
     
-    const trackingNumber = `TRK-${Math.floor(10000 + Math.random() * 90000)}`;
+    const distKm = calcularDistancia(state.originLat, state.originLng, state.destLat, state.destLng);
+    let tarifaTotal = TARIFAS.BASE + (distKm * TARIFAS.POR_KM);
+    if (tarifaTotal < TARIFAS.MINIMA) tarifaTotal = TARIFAS.MINIMA;
 
+    quoteState.set(userId, { ...state, step: 'CONFIRMING', tarifaTotal });
+
+    let refText = '';
+    if (state.originRef) refText += `\n*Ref. Origen:* _${state.originRef}_`;
+    if (state.destRef) refText += `\n*Ref. Destino:* _${state.destRef}_`;
+
+    ctx.reply(
+      `✅ *Cotización Lista*\n\n📏 Distancia: ${distKm.toFixed(2)} km${refText}\n💸 *Costo Estimado: $${tarifaTotal.toFixed(2)}*\n\n*(Tarifa base: $${TARIFAS.BASE.toFixed(2)} + $${TARIFAS.POR_KM.toFixed(2)}/km)*\n\n¿Deseas confirmar el envío?`,
+      {
+        parse_mode: 'Markdown',
+        ...Markup.inlineKeyboard([
+          [Markup.button.callback('✅ Confirmar y Crear Pedido', 'crear_gps_confirm')],
+          [Markup.button.callback('❌ Cancelar', 'action_cancelar')]
+        ])
+      }
+    );
+  };
+
+  // Botones de Omitir Referencias
+  bot.action('skip_origin_ref', (ctx) => {
+    ctx.answerCbQuery();
+    const userId = ctx.from?.id.toString();
+    if (!userId) return;
+    const state = quoteState.get(userId);
+    if (state?.step === 'AWAITING_ORIGIN_REF') {
+      quoteState.set(userId, { ...state, step: 'AWAITING_DEST', originRef: '' });
+      ctx.reply(
+        '🎯 *Paso 2: ¿A dónde lo llevamos?*\n\nPor favor envíame la ubicación de entrega.',
+        { parse_mode: 'Markdown' }
+      );
+    }
+  });
+
+  bot.action('skip_dest_ref', (ctx) => {
+    ctx.answerCbQuery();
+    const userId = ctx.from?.id.toString();
+    if (!userId) return;
+    const state = quoteState.get(userId);
+    if (state?.step === 'AWAITING_DEST_REF') {
+      mostrarCotizacion(ctx, userId, { ...state, destRef: '' });
+    }
+  });
+
+  // 3. Crear el pedido en Supabase con coordenadas (lee del state local)
+  bot.action('crear_gps_confirm', async (ctx) => {
+    const userId = ctx.from?.id.toString();
+    if (!userId) return;
+    
+    const state = quoteState.get(userId);
+    if (!state || state.step !== 'CONFIRMING' || !state.tarifaTotal || !state.originLat || !state.destLat) {
+      return ctx.answerCbQuery('La sesión expiró. Cotiza de nuevo.', { show_alert: true });
+    }
+
+    const trackingNumber = `TRK-${Math.floor(10000 + Math.random() * 90000)}`;
     ctx.answerCbQuery('Calculando ruta exacta y creando pedido...');
 
     try {
-      // Convertir coordenadas a direcciones humanas
-      const origenDir = await obtenerDireccion(originLat, originLng, 'Ubicación GPS (Origen)');
-      const destinoDir = await obtenerDireccion(destLat, destLng, 'Ubicación GPS (Destino)');
+      const origenDir = await obtenerDireccion(state.originLat, state.originLng!, 'Ubicación GPS (Origen)');
+      const destinoDir = await obtenerDireccion(state.destLat, state.destLng!, 'Ubicación GPS (Destino)');
 
       const { error } = await supabaseAdmin.from('pedidos').insert({
         tracking_number: trackingNumber,
         tipo: 'estandar',
-        origen_lat: originLat,
-        origen_lng: originLng,
+        origen_lat: state.originLat,
+        origen_lng: state.originLng,
         origen_direccion: origenDir,
-        destino_lat: destLat,
-        destino_lng: destLng,
+        origen_referencia: state.originRef,
+        destino_lat: state.destLat,
+        destino_lng: state.destLng,
         destino_direccion: destinoDir,
-        creado_por: ctx.from?.id.toString() || 'cliente',
-        tarifa_envio: tarifa,
+        destino_referencia: state.destRef,
+        creado_por: userId,
+        tarifa_envio: state.tarifaTotal,
         estado: 'creado',
         estado_pago: 'pendiente'
       });
 
       if (error) throw error;
+      
+      quoteState.delete(userId);
 
       ctx.editMessageText(
-        `📦 *¡Pedido Creado con Éxito!*\n\n📍 **Origen:** ${origenDir}\n🚩 **Destino:** ${destinoDir}\n\nTu número de guía es: \`${trackingNumber}\`\nEl cobro será de: *$${tarifa.toFixed(2)}*\n\nUn conductor será asignado pronto. ¡Gracias por usar Rapidín!`,
+        `📦 *¡Pedido Creado con Éxito!*\n\n📍 **Origen:** ${origenDir}\n🚩 **Destino:** ${destinoDir}\n\nTu número de guía es: \`${trackingNumber}\`\nEl cobro será de: *$${state.tarifaTotal.toFixed(2)}*\n\nUn conductor será asignado pronto. ¡Gracias por usar Rapidín!`,
         { parse_mode: 'Markdown' }
       );
     } catch (error) {
@@ -241,6 +284,20 @@ export function registerCustomerMenus(bot: Telegraf) {
   bot.on('text', async (ctx, next) => {
     const userId = ctx.from?.id.toString();
     if (!userId) return next();
+
+    // Estado: Referencia Origen
+    const quote = quoteState.get(userId);
+    if (quote?.step === 'AWAITING_ORIGIN_REF') {
+      quoteState.set(userId, { ...quote, step: 'AWAITING_DEST', originRef: ctx.message.text });
+      await ctx.reply('🎯 *Paso 2: ¿A dónde lo llevamos?*\n\nPor favor envíame la ubicación de entrega.', { parse_mode: 'Markdown' });
+      return;
+    }
+    
+    // Estado: Referencia Destino
+    if (quote?.step === 'AWAITING_DEST_REF') {
+      mostrarCotizacion(ctx, userId, { ...quote, destRef: ctx.message.text });
+      return;
+    }
 
     // Estado: Afiliar Mensajero (Vehículo)
     if (afiliarState.has(userId)) {

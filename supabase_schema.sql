@@ -37,9 +37,11 @@ CREATE TABLE public.pedidos (
     origen_lat DOUBLE PRECISION NOT NULL,
     origen_lng DOUBLE PRECISION NOT NULL,
     origen_direccion TEXT,
+    origen_referencia TEXT,
     destino_lat DOUBLE PRECISION NOT NULL,
     destino_lng DOUBLE PRECISION NOT NULL,
     destino_direccion TEXT,
+    destino_referencia TEXT,
     
     -- Usuarios relacionados
     cliente_id UUID REFERENCES public.usuarios(id),
