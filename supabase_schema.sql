@@ -114,3 +114,17 @@ CREATE TABLE public.usuarios_empresas (
 -- Relacionar el pedido con una empresa (si es B2B) y con el conductor asignado
 ALTER TABLE public.pedidos ADD COLUMN IF NOT EXISTS empresa_id UUID REFERENCES public.empresas(id);
 ALTER TABLE public.pedidos ADD COLUMN IF NOT EXISTS conductor_id UUID REFERENCES public.conductores(id);
+
+-- 9. Tabla de Rutas Favoritas B2B
+CREATE TABLE public.rutas_favoritas (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    empresa_id UUID REFERENCES public.empresas(id) ON DELETE CASCADE,
+    nombre_ruta TEXT NOT NULL,
+    origen_lat DOUBLE PRECISION NOT NULL,
+    origen_lng DOUBLE PRECISION NOT NULL,
+    origen_direccion TEXT,
+    destino_lat DOUBLE PRECISION NOT NULL,
+    destino_lng DOUBLE PRECISION NOT NULL,
+    destino_direccion TEXT,
+    creado_en TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
