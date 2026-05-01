@@ -207,11 +207,34 @@ export function registerCustomerMenus(bot: Telegraf) {
   // 7. Flujo B2B: Soy Empresa
   const empresaState = new Set<string>();
 
-  bot.action('action_soy_empresa', (ctx) => {
+  bot.action('action_soy_empresa', async (ctx) => {
     ctx.answerCbQuery();
     const userId = ctx.from?.id.toString();
-    if (userId) empresaState.add(userId);
+    if (!userId) return;
+
+    try {
+      // Verificar si ya tiene el correo registrado o está vinculado a un cliente
+      const { data: cliente } = await supabaseAdmin
+        .from('clientes_telegram')
+        .select('*')
+        .eq('telegram_chat_id', userId)
+        .single();
+
+      // Suponemos que si tiene 'email_empresa' (o un campo similar), ya está validado
+      if (cliente && cliente.email_empresa) {
+        return ctx.reply('🏢 *Panel Corporativo B2B*\n\nTu cuenta ya está vinculada a un perfil de empresa. Accede a tu portal logístico aquí:', {
+          parse_mode: 'Markdown',
+          ...Markup.inlineKeyboard([
+            [Markup.button.url('🗺️ Abrir Dashboard Web', 'https://pruebas-rapidin-app.nswk6n.easypanel.host')]
+          ])
+        });
+      }
+    } catch (err) {
+      console.log("Error verificando registro B2B:", err);
+    }
     
+    // Si no tiene correo registrado, iniciamos el flujo de captura
+    empresaState.add(userId);
     ctx.reply('🏢 *Registro Corporativo*\n\nPor favor, escríbeme tu **correo electrónico corporativo** para contactarte y darte acceso al Dashboard Web B2B:', { parse_mode: 'Markdown' });
   });
 
