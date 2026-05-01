@@ -35,3 +35,26 @@ export async function createOrderAction(data: {
 
   return pedido;
 }
+
+import { revalidatePath } from 'next/cache';
+
+export async function assignDriverAction(pedidoId: string, conductorId: string) {
+  try {
+    const { error } = await supabaseAdmin
+      .from('pedidos')
+      .update({ 
+        conductor_id: conductorId,
+        estado: 'asignado_recoleccion' // Actualiza el estado del pedido a asignado
+      })
+      .eq('id', pedidoId);
+
+    if (error) throw error;
+
+    revalidatePath('/dashboard/deliveries');
+    revalidatePath('/dashboard');
+    return { success: true };
+  } catch (error) {
+    console.error('Error assigning driver:', error);
+    return { success: false, error: 'No se pudo asignar el conductor' };
+  }
+}
