@@ -33,6 +33,9 @@ export async function createOrderAction(data: {
     throw new Error('No se pudo crear el pedido');
   }
 
+  return pedido;
+}
+
 import { revalidatePath } from 'next/cache';
 import bot from '@/telegram/bot';
 
