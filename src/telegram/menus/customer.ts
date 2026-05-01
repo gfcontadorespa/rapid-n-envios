@@ -29,6 +29,24 @@ function calcularDistancia(lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * c;
 }
 
+// Reverse Geocoding usando Mapbox
+async function obtenerDireccion(lat: number, lng: number, fallback: string): Promise<string> {
+  try {
+    const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+    if (!token) return fallback;
+    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${token}&types=address,neighborhood,poi,place&limit=1`;
+    const response = await fetch(url);
+    const data = await response.json();
+    if (data.features && data.features.length > 0) {
+      // Devolvemos el nombre corto del lugar (ej. "Costa del Este, Panamá")
+      return data.features[0].place_name.replace(', Panama', ''); 
+    }
+  } catch (error) {
+    console.error("Error en Reverse Geocoding:", error);
+  }
+  return fallback;
+}
+
 export function registerCustomerMenus(bot: Telegraf) {
   
   // 1. Inicia la cotización pidiendo ubicación de Origen
@@ -105,18 +123,22 @@ export function registerCustomerMenus(bot: Telegraf) {
     
     const trackingNumber = `TRK-${Math.floor(10000 + Math.random() * 90000)}`;
 
-    ctx.answerCbQuery('Creando pedido...');
+    ctx.answerCbQuery('Calculando ruta exacta y creando pedido...');
 
     try {
+      // Convertir coordenadas a direcciones humanas
+      const origenDir = await obtenerDireccion(originLat, originLng, 'Ubicación GPS (Origen)');
+      const destinoDir = await obtenerDireccion(destLat, destLng, 'Ubicación GPS (Destino)');
+
       const { error } = await supabaseAdmin.from('pedidos').insert({
         tracking_number: trackingNumber,
         tipo: 'estandar',
         origen_lat: originLat,
         origen_lng: originLng,
-        origen_direccion: 'Ubicación GPS (Origen)',
+        origen_direccion: origenDir,
         destino_lat: destLat,
         destino_lng: destLng,
-        destino_direccion: 'Ubicación GPS (Destino)',
+        destino_direccion: destinoDir,
         creado_por: ctx.from?.id.toString() || 'cliente',
         tarifa_envio: tarifa,
         estado: 'creado',
@@ -126,7 +148,7 @@ export function registerCustomerMenus(bot: Telegraf) {
       if (error) throw error;
 
       ctx.editMessageText(
-        `📦 *¡Pedido Creado con Éxito!*\n\nTu número de guía es: \`${trackingNumber}\`\nEl cobro será de: *$${tarifa.toFixed(2)}*\n\nUn conductor recibirá las coordenadas y será asignado pronto. ¡Gracias por usar Rapidín!`,
+        `📦 *¡Pedido Creado con Éxito!*\n\n📍 **Origen:** ${origenDir}\n🚩 **Destino:** ${destinoDir}\n\nTu número de guía es: \`${trackingNumber}\`\nEl cobro será de: *$${tarifa.toFixed(2)}*\n\nUn conductor será asignado pronto. ¡Gracias por usar Rapidín!`,
         { parse_mode: 'Markdown' }
       );
     } catch (error) {
