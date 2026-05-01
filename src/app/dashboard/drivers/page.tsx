@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/utils/supabase/admin';
 import { Truck, UserCheck, UserX, AlertCircle } from 'lucide-react';
+import { toggleDriverStatus } from '@/app/actions/driverActions';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,6 +37,9 @@ export default async function DriversPage() {
             <tbody className="divide-y divide-slate-800/50">
               {conductores?.map((c: any) => {
                 const nombreReal = nombresMap.get(c.telegram_chat_id) || 'Desconocido';
+                const approve = toggleDriverStatus.bind(null, c.id, 'activo');
+                const suspend = toggleDriverStatus.bind(null, c.id, 'inactivo');
+                
                 return (
                 <tr key={c.id} className="hover:bg-slate-800/50 transition-colors">
                   <td className="px-5 py-4 text-slate-300">
@@ -51,12 +55,16 @@ export default async function DriversPage() {
                   <td className="px-5 py-4 text-slate-400 capitalize">{c.vehiculo || 'Por asignar'}</td>
                   <td className="px-5 py-4 text-right">
                     <div className="flex justify-end gap-2">
-                      <button className="p-1.5 bg-slate-800 hover:bg-teal-500/20 text-slate-400 hover:text-teal-400 rounded transition-colors" title="Aprobar">
-                        <UserCheck size={16} />
-                      </button>
-                      <button className="p-1.5 bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 rounded transition-colors" title="Suspender/Rechazar">
-                        <UserX size={16} />
-                      </button>
+                      <form action={approve}>
+                        <button disabled={c.estado === 'activo'} type="submit" className={`p-1.5 rounded transition-colors ${c.estado === 'activo' ? 'bg-slate-800/50 text-slate-600 cursor-not-allowed' : 'bg-slate-800 hover:bg-teal-500/20 text-slate-400 hover:text-teal-400'}`} title="Aprobar">
+                          <UserCheck size={16} />
+                        </button>
+                      </form>
+                      <form action={suspend}>
+                        <button disabled={c.estado === 'inactivo'} type="submit" className={`p-1.5 rounded transition-colors ${c.estado === 'inactivo' ? 'bg-slate-800/50 text-slate-600 cursor-not-allowed' : 'bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400'}`} title="Suspender/Rechazar">
+                          <UserX size={16} />
+                        </button>
+                      </form>
                     </div>
                   </td>
                 </tr>
