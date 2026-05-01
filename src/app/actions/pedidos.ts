@@ -38,6 +38,7 @@ export async function createOrderAction(data: {
 
 import { revalidatePath } from 'next/cache';
 import bot from '@/telegram/bot';
+import { Markup } from 'telegraf';
 
 export async function assignDriverAction(pedidoId: string, conductorId: string) {
   try {
@@ -99,7 +100,10 @@ export async function assignDriverAction(pedidoId: string, conductorId: string) 
       try {
         await bot.telegram.sendMessage(conductor.telegram_chat_id, mensaje, { 
           parse_mode: 'Markdown',
-          link_preview_options: { is_disabled: true }
+          link_preview_options: { is_disabled: true },
+          ...Markup.inlineKeyboard([
+            [Markup.button.callback('📦 Paquete Recogido', `pickup_${pedido.id}`)]
+          ])
         });
       } catch (tgError) {
         console.error('Error enviando mensaje de Telegram al conductor:', tgError);

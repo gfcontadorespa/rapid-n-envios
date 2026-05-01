@@ -75,4 +75,49 @@ export function registerDriverMenus(bot: Telegraf) {
     }
   });
 
+  // 6. Manejar el botón "Paquete Recogido"
+  bot.action(/^pickup_(.+)$/, async (ctx) => {
+    const pedidoId = ctx.match[1];
+    const telegramId = ctx.from?.id.toString();
+
+    try {
+      // 1. Actualizar el pedido en la base de datos a "en_ruta_entrega"
+      const { data: pedido, error } = await supabaseAdmin
+        .from('pedidos')
+        .update({ estado: 'en_ruta_entrega' })
+        .eq('id', pedidoId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // 2. Avisar al conductor que se registró con éxito
+      await ctx.answerCbQuery('✅ Paquete recogido marcado con éxito.', { show_alert: false });
+      
+      // Actualizamos el mensaje original para quitar el botón (evitar doble clic)
+      const msgOriginal = ctx.callbackQuery.message as any;
+      if (msgOriginal) {
+        await ctx.editMessageText(msgOriginal.text + '\n\n✅ *MARCADO COMO RECOGIDO Y EN RUTA*', { parse_mode: 'Markdown' });
+      }
+
+      // 3. Si el pedido fue creado por un cliente vía Telegram, le enviamos la notificación con el tracking
+      if (pedido.creado_por && pedido.creado_por !== 'web') {
+        const trackingUrl = `https://pruebas-rapidin-app.nswk6n.easypanel.host/track/${pedido.tracking_number}`;
+        const mensajeCliente = 
+          `🚀 *¡Tu paquete está en camino!*\n\n` +
+          `Nuestro mensajero ya recolectó tu envío con el tracking \`${pedido.tracking_number}\`.\n\n` +
+          `Síguelo en tiempo real desde este enlace:\n🔗 [Ver Rastreo en Vivo](${trackingUrl})`;
+
+        await ctx.telegram.sendMessage(pedido.creado_por, mensajeCliente, { 
+          parse_mode: 'Markdown',
+          link_preview_options: { is_disabled: true }
+        });
+      }
+
+    } catch (err) {
+      console.error('Error procesando pickup:', err);
+      ctx.answerCbQuery('❌ Ocurrió un error al actualizar el estado.', { show_alert: true });
+    }
+  });
+
 }
