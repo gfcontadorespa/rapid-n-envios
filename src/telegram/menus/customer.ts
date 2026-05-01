@@ -1,68 +1,108 @@
 import { Telegraf, Markup } from 'telegraf';
 import { supabaseAdmin } from '@/utils/supabase/admin';
 
-// Exportamos una función que recibe el bot y le registra las acciones del cliente
+// Estado en memoria temporal para las cotizaciones (En producción se recomienda Redis o Base de Datos)
+const quoteState = new Map<string, {
+  step: 'AWAITING_ORIGIN' | 'AWAITING_DEST',
+  originLat?: number,
+  originLng?: number,
+  destLat?: number,
+  destLng?: number
+}>();
+
+// Configuración de tarifas (Fácil de mover a la BD en el futuro para personalizar)
+const TARIFAS = {
+  BASE: 2.50, // Costo base por inicio del servicio
+  POR_KM: 0.80, // Costo por cada kilómetro recorrido
+  MINIMA: 3.50 // Tarifa mínima a cobrar
+};
+
+// Fórmula matemática para calcular distancia en KM (Haversine)
+function calcularDistancia(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371; // Radio de la tierra en km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
 export function registerCustomerMenus(bot: Telegraf) {
   
-  // 1. Inicia la cotización
+  // 1. Inicia la cotización pidiendo ubicación de Origen
   bot.action('action_cotizar', (ctx) => {
     ctx.answerCbQuery();
-    ctx.editMessageText(
-      '📍 *Paso 1: ¿En qué zona recogemos tu paquete?*',
+    const userId = ctx.from?.id.toString();
+    if (!userId) return;
+
+    quoteState.set(userId, { step: 'AWAITING_ORIGIN' });
+
+    ctx.reply(
+      '📍 *Paso 1: ¿Dónde recogemos el paquete?*\n\nPor favor, envíame la ubicación. Puedes usar el botón de abajo para enviar tu ubicación actual de forma rápida.',
       {
         parse_mode: 'Markdown',
-        ...Markup.inlineKeyboard([
-          [Markup.button.callback('🏙️ Centro', 'orig_centro')],
-          [Markup.button.callback('🌲 Norte', 'orig_norte')],
-          [Markup.button.callback('🏖️ Sur', 'orig_sur')]
-        ])
+        ...Markup.keyboard([
+          [Markup.button.locationRequest('📍 Compartir mi Ubicación Actual')]
+        ]).resize().oneTime()
       }
     );
   });
 
-  // 2. Seleccionó el Origen (ej: Centro), pedimos el Destino
-  bot.action(/^orig_(.+)$/, (ctx) => {
-    const origen = ctx.match[1];
-    ctx.answerCbQuery();
-    ctx.editMessageText(
-      `📍 *Origen:* ${origen.toUpperCase()} ✅\n\n🎯 *Paso 2: ¿Hacia qué zona lo enviamos?*`,
-      {
-        parse_mode: 'Markdown',
-        ...Markup.inlineKeyboard([
-          [Markup.button.callback('🏙️ Centro', `dest_${origen}_centro`)],
-          [Markup.button.callback('🌲 Norte', `dest_${origen}_norte`)],
-          [Markup.button.callback('🏖️ Sur', `dest_${origen}_sur`)]
-        ])
-      }
-    );
+  // 2. Escuchar ubicaciones enviadas por el usuario
+  bot.on('location', (ctx) => {
+    const userId = ctx.from?.id.toString();
+    const state = quoteState.get(userId);
+    const lat = ctx.message.location.latitude;
+    const lng = ctx.message.location.longitude;
+
+    if (!state) return; // Si no está en medio de una cotización, ignoramos
+
+    if (state.step === 'AWAITING_ORIGIN') {
+      // Guardar origen y pedir destino
+      quoteState.set(userId, { step: 'AWAITING_DEST', originLat: lat, originLng: lng });
+      ctx.reply(
+        '✅ ¡Origen guardado!\n\n🎯 *Paso 2: ¿A dónde lo llevamos?*\n\nPor favor envíame la ubicación de entrega. (Puedes adjuntarla usando el ícono del clip 📎 y seleccionando "Ubicación" para buscarla en el mapa).',
+        {
+          parse_mode: 'Markdown',
+          ...Markup.removeKeyboard() // Quitamos el teclado de ubicación actual
+        }
+      );
+    } else if (state.step === 'AWAITING_DEST') {
+      // Guardar destino y calcular tarifa
+      if (state.originLat === undefined || state.originLng === undefined) return;
+      
+      const distKm = calcularDistancia(state.originLat, state.originLng, lat, lng);
+      
+      // Cálculo de tarifa
+      let tarifaTotal = TARIFAS.BASE + (distKm * TARIFAS.POR_KM);
+      if (tarifaTotal < TARIFAS.MINIMA) tarifaTotal = TARIFAS.MINIMA; // Respetar tarifa mínima
+
+      ctx.reply(
+        `✅ *Cotización Lista*\n\n📏 Distancia calculada: ${distKm.toFixed(2)} km\n💸 *Costo Estimado: $${tarifaTotal.toFixed(2)}*\n\n*(Tarifa base: $${TARIFAS.BASE.toFixed(2)} + $${TARIFAS.POR_KM.toFixed(2)}/km)*\n\n¿Deseas confirmar el envío?`,
+        {
+          parse_mode: 'Markdown',
+          ...Markup.inlineKeyboard([
+            [Markup.button.callback('✅ Confirmar y Crear Pedido', `crear_gps_${state.originLat}_${state.originLng}_${lat}_${lng}_${tarifaTotal.toFixed(2)}`)],
+            [Markup.button.callback('❌ Cancelar', 'action_cancelar')]
+          ])
+        }
+      );
+      
+      // Limpiamos el estado
+      quoteState.delete(userId);
+    }
   });
 
-  // 3. Seleccionó el Destino, calculamos el precio final
-  bot.action(/^dest_(.+)_(.+)$/, (ctx) => {
-    const origen = ctx.match[1];
-    const destino = ctx.match[2];
+  // 3. Crear el pedido en Supabase con coordenadas
+  bot.action(/^crear_gps_(.+)_(.+)_(.+)_(.+)_(.+)$/, async (ctx) => {
+    const originLat = parseFloat(ctx.match[1]);
+    const originLng = parseFloat(ctx.match[2]);
+    const destLat = parseFloat(ctx.match[3]);
+    const destLng = parseFloat(ctx.match[4]);
+    const tarifa = parseFloat(ctx.match[5]);
     
-    // Lógica básica de precios: Misma zona = $3.50, Diferente zona = $5.50
-    const tarifa = origen === destino ? 3.50 : 5.50;
-
-    ctx.answerCbQuery();
-    ctx.editMessageText(
-      `✅ *Cotización Lista*\n\n📍 Origen: ${origen.toUpperCase()}\n🎯 Destino: ${destino.toUpperCase()}\n\n💸 *Costo Estimado: $${tarifa.toFixed(2)}*\n\n¿Qué deseas hacer ahora?`,
-      {
-        parse_mode: 'Markdown',
-        ...Markup.inlineKeyboard([
-          [Markup.button.callback('✅ Confirmar y Crear Pedido', `crear_${origen}_${destino}_${tarifa}`)],
-          [Markup.button.callback('❌ Cancelar', 'action_cancelar')]
-        ])
-      }
-    );
-  });
-
-  // 4. Crear el pedido en Supabase
-  bot.action(/^crear_(.+)_(.+)_(.+)$/, async (ctx) => {
-    const origen = ctx.match[1];
-    const destino = ctx.match[2];
-    const tarifa = parseFloat(ctx.match[3]);
     const trackingNumber = `TRK-${Math.floor(10000 + Math.random() * 90000)}`;
 
     ctx.answerCbQuery('Creando pedido...');
@@ -71,12 +111,12 @@ export function registerCustomerMenus(bot: Telegraf) {
       const { error } = await supabaseAdmin.from('pedidos').insert({
         tracking_number: trackingNumber,
         tipo: 'estandar',
-        origen_lat: 0, // Mock coordinates
-        origen_lng: 0,
-        origen_direccion: `Zona: ${origen.toUpperCase()}`,
-        destino_lat: 0,
-        destino_lng: 0,
-        destino_direccion: `Zona: ${destino.toUpperCase()}`,
+        origen_lat: originLat,
+        origen_lng: originLng,
+        origen_direccion: 'Ubicación GPS (Origen)',
+        destino_lat: destLat,
+        destino_lng: destLng,
+        destino_direccion: 'Ubicación GPS (Destino)',
         creado_por: 'cliente',
         tarifa_envio: tarifa,
         estado: 'creado',
@@ -86,18 +126,21 @@ export function registerCustomerMenus(bot: Telegraf) {
       if (error) throw error;
 
       ctx.editMessageText(
-        `📦 *¡Pedido Creado con Éxito!*\n\nTu número de guía es: \`${trackingNumber}\`\n\nUn conductor será asignado pronto. ¡Gracias por usar Rapidín!`,
+        `📦 *¡Pedido Creado con Éxito!*\n\nTu número de guía es: \`${trackingNumber}\`\nEl cobro será de: *$${tarifa.toFixed(2)}*\n\nUn conductor recibirá las coordenadas y será asignado pronto. ¡Gracias por usar Rapidín!`,
         { parse_mode: 'Markdown' }
       );
     } catch (error) {
-      console.error("Error creando pedido:", error);
+      console.error("Error creando pedido GPS:", error);
       ctx.editMessageText('❌ Ocurrió un error al crear tu pedido. Intenta de nuevo más tarde.');
     }
   });
 
-  // 5. Botón de Cancelar para volver al menú principal
+  // 4. Botón de Cancelar para volver al menú principal
   bot.action('action_cancelar', (ctx) => {
     ctx.answerCbQuery();
+    const userId = ctx.from?.id.toString();
+    if (userId) quoteState.delete(userId); // Limpiar si había algo
+
     ctx.editMessageText(
       'Cotización cancelada. ¿En qué más te puedo ayudar?',
       Markup.inlineKeyboard([
@@ -107,7 +150,7 @@ export function registerCustomerMenus(bot: Telegraf) {
     );
   });
 
-  // 6. Afiliar Mensajero
+  // 6. Afiliar Mensajero (Sin cambios)
   bot.action('action_afiliar_mensajero', async (ctx) => {
     ctx.answerCbQuery('Procesando solicitud...');
     const telegramId = ctx.from?.id.toString();
@@ -115,7 +158,6 @@ export function registerCustomerMenus(bot: Telegraf) {
     if (!telegramId) return;
 
     try {
-      // Verificar si ya existe
       const { data: existente } = await supabaseAdmin
         .from('conductores')
         .select('*')
@@ -130,7 +172,6 @@ export function registerCustomerMenus(bot: Telegraf) {
         }
       }
 
-      // Si no existe, lo insertamos como inactivo
       const { error } = await supabaseAdmin.from('conductores').insert({
         telegram_chat_id: telegramId,
         vehiculo: 'Por asignar',
@@ -145,7 +186,6 @@ export function registerCustomerMenus(bot: Telegraf) {
         { parse_mode: 'Markdown' }
       );
 
-      // Notificar al admin
       const GLOBAL_ADMIN_ID = '5989236776';
       bot.telegram.sendMessage(
         GLOBAL_ADMIN_ID,

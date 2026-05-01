@@ -4,10 +4,14 @@ import { supabaseAdmin } from '@/utils/supabase/admin';
 const GLOBAL_ADMIN_ID = '5989236776';
 
 export function registerAdminMenus(bot: Telegraf<Context>) {
-  bot.action('admin_dashboard', (ctx) => {
+  bot.action('admin_dashboard', async (ctx) => {
     ctx.answerCbQuery();
-    ctx.reply('🔧 Accediendo al Panel de Control de Administración...');
-    // Aquí puedes agregar lógica para el dashboard del admin
+    await ctx.reply('🔧 *Panel de Control*\n\nPara ver el mapa en vivo y las métricas completas, por favor ingresa al portal web seguro:', {
+      parse_mode: 'Markdown',
+      ...Markup.inlineKeyboard([
+        [Markup.button.url('🗺️ Ingresar al Dashboard Web', 'https://pruebas-rapidin-app.nswk6n.easypanel.host/dashboard')]
+      ])
+    });
   });
 
   bot.action('admin_drivers', async (ctx) => {
