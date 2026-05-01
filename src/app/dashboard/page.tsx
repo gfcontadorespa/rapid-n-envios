@@ -1,5 +1,5 @@
 import { Package, Truck, Clock, AlertTriangle, MoreHorizontal, ArrowUpRight } from "lucide-react";
-import Map from '@/components/Map';
+import TrackingMap from '@/components/Map';
 import { supabaseAdmin } from '@/utils/supabase/admin';
 
 // Forced dynamic to avoid caching stale data on the dashboard
@@ -39,7 +39,7 @@ export default async function DashboardPage() {
           
           {/* Live Tracking Map */}
           <div className="h-[400px] w-full rounded-xl overflow-hidden relative z-0">
-            <Map />
+            <TrackingMap />
           </div>
 
           {/* Recent Deliveries Table */}
