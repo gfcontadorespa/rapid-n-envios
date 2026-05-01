@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/utils/supabase/admin';
 import { Package, Clock, MapPin, Truck, MoreHorizontal } from 'lucide-react';
+import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,9 +33,9 @@ export default async function DeliveriesPage() {
           <h1 className="text-2xl font-bold text-white">Centro de Entregas</h1>
           <p className="text-slate-400 text-sm mt-1">Monitorea el estado y ruta de todos los paquetes</p>
         </div>
-        <button className="px-4 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold rounded-lg shadow-[0_0_15px_rgba(45,212,191,0.3)] transition-all">
+        <Link href="/dashboard/deliveries/new" className="px-4 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold rounded-lg shadow-[0_0_15px_rgba(45,212,191,0.3)] transition-all">
           + Nuevo Pedido Manual
-        </button>
+        </Link>
       </div>
 
       <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl">

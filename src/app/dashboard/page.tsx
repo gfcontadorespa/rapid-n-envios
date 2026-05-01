@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Package, Truck, Clock, AlertTriangle, MoreHorizontal, ArrowUpRight } from "lucide-react";
 import TrackingMap from '@/components/Map';
 import { supabaseAdmin } from '@/utils/supabase/admin';
@@ -46,7 +47,7 @@ export default async function DashboardPage() {
           <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
           <div className="p-5 border-b border-slate-800 flex justify-between items-center">
             <h2 className="font-semibold text-white">Recent Deliveries</h2>
-            <button className="text-sm text-teal-400 hover:text-teal-300 font-medium">View All</button>
+            <Link href="/dashboard/deliveries" className="text-sm text-teal-400 hover:text-teal-300 font-medium">View All</Link>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
@@ -101,9 +102,9 @@ export default async function DashboardPage() {
                 <div className="text-slate-500 text-center py-4 text-sm">No active drivers</div>
               )}
             </div>
-            <button className="w-full mt-4 py-2 border border-slate-700 hover:bg-slate-800 rounded-lg text-sm text-slate-300 font-medium transition-colors">
+            <Link href="/dashboard/drivers" className="w-full mt-4 py-2 border border-slate-700 hover:bg-slate-800 rounded-lg text-sm text-slate-300 font-medium transition-colors flex justify-center items-center">
               Manage Drivers
-            </button>
+            </Link>
           </div>
         </div>
       </div>
