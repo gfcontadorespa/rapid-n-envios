@@ -22,9 +22,7 @@ function formatFecha(fechaIso: string) {
   });
 }
 
-import dynamicImport from 'next/dynamic';
-
-const TrackingMap = dynamicImport(() => import('./TrackingMap'), { ssr: false });
+import MapWrapper from './MapWrapper';
 
 // Interfaz pública y sencilla
 export default async function TrackingPage({ params }: { params: Promise<{ tracking_number: string }> }) {
@@ -134,7 +132,7 @@ export default async function TrackingPage({ params }: { params: Promise<{ track
             </div>
           </div>
           
-          <TrackingMap 
+          <MapWrapper 
             origenLat={pedido.origen_lat}
             origenLng={pedido.origen_lng}
             destinoLat={pedido.destino_lat}
