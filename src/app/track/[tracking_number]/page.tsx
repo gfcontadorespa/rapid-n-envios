@@ -23,8 +23,8 @@ function formatFecha(fechaIso: string) {
 }
 
 // Interfaz pública y sencilla
-export default async function TrackingPage({ params }: { params: { tracking_number: string } }) {
-  const { tracking_number } = params;
+export default async function TrackingPage({ params }: { params: Promise<{ tracking_number: string }> }) {
+  const { tracking_number } = await params;
 
   const { data: pedido, error } = await supabaseAdmin
     .from('pedidos')
