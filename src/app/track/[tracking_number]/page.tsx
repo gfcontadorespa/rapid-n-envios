@@ -22,6 +22,8 @@ function formatFecha(fechaIso: string) {
   });
 }
 
+import TrackingMap from './TrackingMap';
+
 // Interfaz pública y sencilla
 export default async function TrackingPage({ params }: { params: Promise<{ tracking_number: string }> }) {
   const { tracking_number } = await params;
@@ -130,10 +132,17 @@ export default async function TrackingPage({ params }: { params: Promise<{ track
             </div>
           </div>
           
+          <TrackingMap 
+            origenLat={pedido.origen_lat}
+            origenLng={pedido.origen_lng}
+            destinoLat={pedido.destino_lat}
+            destinoLng={pedido.destino_lng}
+          />
+
           {/* Footer Informativo */}
           <div className="bg-slate-950/50 p-4 border-t border-slate-800 text-center">
             <p className="text-xs text-slate-500">
-              Cualquier consulta sobre tu envío, por favor contáctanos a través del <a href="https://t.me/rapidin_bot" className="text-teal-400 hover:underline">Chat de Soporte en Telegram</a>.
+              Cualquier consulta sobre tu envío, por favor contáctanos a través de nuestro <a href="https://t.me/rapidin_bot" className="text-teal-400 hover:underline">Chat de Soporte Técnico</a>.
             </p>
           </div>
         </div>

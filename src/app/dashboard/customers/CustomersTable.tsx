@@ -7,11 +7,15 @@ export default function CustomersTable({ initialClientes }: { initialClientes: a
   const [searchTerm, setSearchTerm] = useState('');
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
 
-  const filteredClientes = initialClientes.filter(c => 
-    c.nombre_perfil?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.telegram_chat_id?.includes(searchTerm) ||
-    c.telefono?.includes(searchTerm)
-  );
+  const filteredClientes = initialClientes.filter(c => {
+    if (searchTerm === '@') return !!c.email_empresa;
+    return (
+      c.nombre_perfil?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.telegram_chat_id?.includes(searchTerm) ||
+      c.telefono?.includes(searchTerm) ||
+      c.email_empresa?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
 
   return (
     <div className="space-y-6">
