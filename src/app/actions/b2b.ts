@@ -62,7 +62,7 @@ export async function createB2BPortalAction(clienteTelegramId: string) {
     try {
       await bot.telegram.sendMessage(clienteTelegramId, mensaje, { 
         parse_mode: 'Markdown',
-        disable_web_page_preview: true
+        link_preview_options: { is_disabled: true }
       });
     } catch (tgError) {
       console.error('Error notificando por Telegram al lead B2B:', tgError);
