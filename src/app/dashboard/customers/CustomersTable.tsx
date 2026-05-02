@@ -104,7 +104,23 @@ export default function CustomersTable({ initialClientes }: { initialClientes: a
                     {openDropdownId === cliente.id && (
                       <div className="absolute right-8 top-10 w-48 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden text-left">
                         {cliente.email_empresa && (
-                          <button className="flex items-center gap-2 px-4 py-2.5 text-sm text-indigo-300 hover:bg-slate-700 hover:text-indigo-200 transition-colors w-full text-left font-medium">
+                          <button 
+                            onClick={async () => {
+                              try {
+                                const { createB2BPortalAction } = await import('@/app/actions/b2b');
+                                const res = await createB2BPortalAction(cliente.telegram_chat_id);
+                                if (res.success) {
+                                  alert('✅ Portal de Empresa creado exitosamente. Se ha notificado al cliente.');
+                                } else {
+                                  alert('❌ Error: ' + res.error);
+                                }
+                                setOpenDropdownId(null);
+                              } catch (e) {
+                                alert('❌ Ocurrió un error inesperado.');
+                              }
+                            }}
+                            className="flex items-center gap-2 px-4 py-2.5 text-sm text-indigo-300 hover:bg-slate-700 hover:text-indigo-200 transition-colors w-full text-left font-medium"
+                          >
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
                             Crear Portal Empresa
                           </button>
